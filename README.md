@@ -1,6 +1,6 @@
 
 
-```markdown
+
 # 🚀 DevOps Boilerplates
 
 Welcome to the **DevOps Boilerplates** repository! 🌟
@@ -9,6 +9,7 @@ This collection is a treasure trove of **automated configurations**, **scripts**
 
 ## 📂 Directory Structure
 
+```markdown
 .
 ├── ansible
 ├── docker
