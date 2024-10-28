@@ -1,0 +1,62 @@
+pipeline {
+  agent any
+
+  options {
+    ansiColor('xterm')
+  }
+
+  parameters {
+    choice(
+      name: 'ACTION',
+      choices: ['plan', 'apply', 'destroy'],
+      description: 'Select the Terraform action to perform: plan, apply, or destroy'
+    )
+  }
+
+  stages {
+    stage('Checkout SCM') {
+      steps {
+        checkout([
+          $class: 'GitSCM', 
+          branches: [[name: '*/main']], 
+          extensions: [], 
+          userRemoteConfigs: [[
+            credentialsId: '', # Add your credentials ID here
+            url: '' # Add your repository URL here
+          ]]
+        ])
+        sh 'ls -al'
+      }
+    }
+    stage('Terraform init') {
+      steps {
+        dir('homelab') {
+          sh 'terraform init'
+        }
+      }
+    }
+    stage('Terraform plan/apply/destroy') {
+      steps {
+        withCredentials([
+          string(credentialsId: 'proxmox_api_url', variable: 'proxmox_api_url'),
+          string(credentialsId: 'proxmox_api_token_id', variable: 'proxmox_api_token_id'),
+          string(credentialsId: 'proxmox_api_token_secret', variable: 'proxmox_api_token_secret')
+        ]) {
+          script {
+            dir('terraform/homelab') {
+              if (params.ACTION == 'plan') {
+                sh 'terraform plan -var proxmox_api_url=${proxmox_api_url} -var proxmox_api_token_id=${proxmox_api_token_id} -var proxmox_api_token_secret=${proxmox_api_token_secret} -out=plan.out'
+              } else if (params.ACTION == 'apply') {
+                input message: 'Do you approve the Terraform apply?', ok: 'Apply'
+                sh 'terraform apply -var proxmox_api_url=${proxmox_api_url} -var proxmox_api_token_id=${proxmox_api_token_id} -var proxmox_api_token_secret=${proxmox_api_token_secret} -auto-approve plan.out'
+              } else if (params.ACTION == 'destroy') {
+                input message: 'Do you approve the Terraform destroy?', ok: 'Destroy'
+                sh 'terraform destroy -var proxmox_api_url=${proxmox_api_url} -var proxmox_api_token_id=${proxmox_api_token_id} -var proxmox_api_token_secret=${proxmox_api_token_secret} -auto-approve'
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,73 @@
+---
+- name: Add a new VM to Terraform
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    last_vm_instance: ""
+    new_vm_instance: ""
+
+  tasks:
+    - name: Load existing main.tf
+      copy:
+        src: main.tf
+        dest: /tmp/main.tf
+
+    - name: Find the last VM instance in main.tf
+      shell: "grep -oP 'module \"vm_instance_\\d+\"' /tmp/main.tf | tail -1 | grep -oP '\\d+'"
+      register: last_vm_number
+      changed_when: false
+
+    - name: Set the new VM instance name
+      set_fact:
+        last_vm_instance: "vm_instance_{{ last_vm_number.stdout }}"
+        new_vm_instance: "vm_instance_{{ last_vm_number.stdout | int + 1 }}"
+
+    - name: Set dependencies based on the last VM instance
+      set_fact:
+        vm_dependencies: "depends_on = [module.{{ last_vm_instance }}]"
+      when: last_vm_number.stdout != ""
+
+    - name: Append new VM details to main.tf
+      lineinfile:
+        path: /tmp/main.tf
+        insertafter: EOF
+        line: |
+          module "{{ new_vm_instance }}" {
+            source      = "./modules/proxmox-vm"
+            vm_name     = "{{ vm_name }}"
+            memory      = {{ vm_memory }}
+            cores       = {{ vm_cores }}
+            ipconfig0   = "ip={{ vm_ip }}/24,gw=10.10.0.1"
+            clone       = "{{ vm_template }}"
+            tags        = "test"
+            {{ vm_dependencies }}
+          }
+    
+    - name: current working directory
+      ansible.builtin.shell:
+        cmd: pwd
+
+    - name: Save updated main.tf
+      copy:
+        src: /tmp/main.tf
+        dest: # Path: boilerplates/ansible/add_vm_proxmox.yaml
+
+    - name: Load existing output.tf
+      copy:
+        src: output.tf
+        dest: /tmp/output.tf
+
+    - name: Append new VM output to output.tf
+      lineinfile:
+        path: /tmp/output.tf
+        insertafter: EOF
+        line: |
+          output "{{ vm_name }}_id" {
+            value = module.{{ new_vm_instance }}.vm_id
+          }
+
+    - name: Save updated output.tf
+      copy:
+        src: /tmp/output.tf
+        dest: # Path: boilerplates/ansible/add_vm_proxmox.yaml
