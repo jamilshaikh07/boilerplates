@@ -1,0 +1,8 @@
+---
+- hosts: all
+  become:
+  tasks:
+  - name: remove docker
+    package:
+        name: docker
+        state: absent

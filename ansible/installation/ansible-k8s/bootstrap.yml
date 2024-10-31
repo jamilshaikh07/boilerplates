@@ -1,0 +1,120 @@
+- hosts: all
+  become: yes
+  pre_tasks:
+   - name: disable firewall service
+     service:
+        name: ufw
+        state: stopped
+        enabled: false
+     when: ansible_distribution == 'Ubuntu'
+
+   - name: Disable SWAP 
+     shell: |
+       swapoff -a
+
+   - name: Disable SWAP in fstab 
+     lineinfile:
+       path: /etc/fstab
+       regexp: 'swap'
+       state: absent
+
+   - name: disable SELinux
+     command: setenforce 0
+     ignore_errors: yes
+
+   - name: disable SELinux on reboot
+     selinux:
+       state: disabled
+
+   - name: ensure net.bridge.bridge-nf-call-ip6tables is set to 1
+     sysctl:
+      name: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+      state: present
+
+   - name: ensure net.bridge.bridge-nf-call-iptables is set to 1
+     sysctl:
+      name: net.bridge.bridge-nf-call-iptables
+      value: 1
+      state: present
+
+   - name: Add Docker GPG apt key (Ubuntu)
+     apt_key:
+         url: https://download.docker.com/linux/ubuntu/gpg
+         state: present
+     when: ansible_distribution == 'Ubuntu'
+
+   - name: Add Docker repo (Ubuntu)
+     apt_repository:
+         repo: deb https://download.docker.com/linux/ubuntu bionic stable
+         state: present
+     when: ansible_distribution == 'Ubuntu'
+
+   - name: install docker in Ubuntu
+     apt:
+       name: docker-ce
+       state: present
+       update_cache: true
+     when: ansible_distribution == 'Ubuntu'
+
+   - name: start Docker
+     service:
+       name: docker
+       state: started
+       enabled: true
+
+   - name: add Kubernetes YUM repository
+     yum_repository:
+      name: Kubernetes
+      description: Kubernetes YUM repository
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      gpgcheck: yes
+
+   - name: install kubelet
+     yum:
+        name: kubelet-1.14.0
+        state: present
+        update_cache: true
+
+   - name: install kubeadm
+     yum:
+        name: kubeadm-1.14.0
+        state: present
+
+   - name: start kubelet
+     service:
+       name: kubelet
+       enabled: yes
+       state: started
+
+- hosts: masters
+  become: yes
+  tasks:
+   - name: install kubectl
+     yum:
+        name: kubectl
+        state: present
+        allow_downgrade: yes
+
+- hosts: all
+  become: yes
+  tasks:
+      - name: create ubuntu user
+        tags: always
+        user:
+            name: ubuntu
+            groups: root
+      - name: add ssh key for ubuntu
+        tags: always
+        authorized_key:
+            user: ubuntu
+            key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBUoFFof1oH8x2Hs7gJ0M16F7Jnev2f4ziEXAsM5O/jW ansible"
+      - name: add sudoers file for ubuntu
+        tags: always
+        copy:
+            src: sudoer_ubuntu
+            dest: /etc/sudoers.d/ubuntu
+            owner: root
+            group: root
+            mode: 0440

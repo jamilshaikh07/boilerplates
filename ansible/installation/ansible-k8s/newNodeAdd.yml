@@ -1,0 +1,60 @@
+- hosts: newadd
+  become: yes
+  tasks:
+
+   - name: disable firewall service
+     service:
+        name: firewalld
+        state: stopped
+        enabled: false
+
+   - name: Disable SWAP 
+     shell: |
+       swapoff -a
+
+   - name: Disable SWAP in fstab 
+     lineinfile:
+       path: /etc/fstab
+       regexp: 'swap'
+       state: absent
+
+   - name: disable SELinux on reboot
+     selinux:
+       state: disabled
+
+   - name: ensure net.bridge.bridge-nf-call-ip6tables is set to 1
+     sysctl:
+      name: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+      state: present
+
+   - name: ensure net.bridge.bridge-nf-call-iptables is set to 1
+     sysctl:
+      name: net.bridge.bridge-nf-call-iptables
+      value: 1
+      state: present
+
+   - name: add Kubernetes YUM repository
+     yum_repository:
+      name: Kubernetes
+      description: Kubernetes YUM repository
+      baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
+      gpgkey: https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+      gpgcheck: yes
+
+   - name: install kubeadm
+     yum:
+        name: kubeadm
+        state: present
+
+   - name: start kubelet
+     service:
+       name: kubelet
+       enabled: yes
+       state: started
+
+- hosts: newadd
+  become: yes
+  tasks:
+   - name: reboot NEWLY ADDED machines
+     reboot:

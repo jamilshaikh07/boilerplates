@@ -1,0 +1,11 @@
+[all]
+server01 ansible_host=10.10.0.219
+server02 ansible_host=10.10.0.232
+server03 ansible_host=10.10.0.115
+
+[master]
+server01
+
+[worker]
+server02
+server03
