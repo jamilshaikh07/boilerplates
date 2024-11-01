@@ -2,7 +2,27 @@
 
 This directory contains configurations and examples for Docker containerization.
 
+## Directories
+
+- `ansiblesemaphore`: ansbile semaphore docker compose file
+- `grafana`: grafana docker compose file
+- `homepage`: homepage 
+- `nginxproxymanager`: nginxproxymanager docker compose file
+- `pihole`: pihole docker compose file
+- `portainer`: portainer docker compose file
+- `prometheus`: prometheus docker compose file
+- `teleport`: teleport docker compose file
+- `uptimekuma`: uptimekuma docker compose file
+
+
 ## Usage
 
-- Refer to the `test.txt` for example commands to build and run Docker containers.
-- Additional documentation on Docker commands and best practices can be found in this directory.
+```bash
+docker compose up <directory> -d
+```
+### OR
+
+```bash
+cd <directory>
+docker compose up -d
+```
