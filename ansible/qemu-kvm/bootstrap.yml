@@ -1,0 +1,27 @@
+---
+- hosts: localhost
+  vars:
+    virt_images_dir: /virt/images
+    virt_vms_dir: /virt/vms
+  tasks: 
+
+  - name: Ensure Qemu images directory exists
+    file:
+      state: directory
+      path: "{{ virt_images_dir }}"
+  
+  - name: Ensure Qemu VMs directory exists
+    file:
+      state: directory
+      path: "{{ virt_vms_dir }}"
+
+  - name: Download Ubuntu 18.04 cloud image with progress bar
+    shell: wget -q --show-progress -O "{{ virt_images_dir }}/bionic-server-cloudimg-amd64.img" https://cloud-images.ubuntu.com/bionic/current/bionic-server-cloudimg-amd64.img
+    args:
+      creates: "{{ virt_images_dir }}/bionic-server-cloudimg-amd64.img"
+
+  - name: Convert cloud image to qcow format
+    shell:
+      chdir: "{{ virt_images_dir }}"
+      cmd: qemu-img convert -f qcow2 bionic-server-cloudimg-amd64.img bionic-server-cloudimg-amd64.qcow2
+      creates: "{{ virt_images_dir }}/bionic-server-cloudimg-amd64.qcow2"

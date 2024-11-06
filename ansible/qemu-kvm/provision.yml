@@ -1,0 +1,60 @@
+---
+- hosts: localhost
+  tasks:
+    - name: Check if VM directory exists
+      stat:
+        path: "/virt/vms/{{ vmname }}"
+      register: vm_exists
+    
+    - name: Fail if VM already exists
+      fail:
+        msg: "VM '{{ vmname }}' already exists."
+      when: vm_exists.stat.exists
+      
+    - name: create vm directory
+      file:
+          path: /virt/vms/{{ vmname }}
+          state:  directory
+
+    - name:  copy cloud config
+      template:
+        src: cloud-config.j2
+        dest: /virt/vms/{{ vmname }}/cloud-config.yml
+  
+    - name: set hostname
+      shell:
+         cmd: sed -i 's/hostname:.*/& {{ vmname }}/g' /virt/vms/{{ vmname }}/cloud-config.yml
+      args:
+        creates: /virt/vms/{{ vmname }}/cloud-config.yml
+         
+    - name: generate cloud config img
+      shell:
+        cmd: cloud-localds /virt/vms/{{ vmname }}/{{ vmname }}-cloud-config.img /virt/vms/{{ vmname }}/cloud-config.yml
+
+    - name: "{{ vmname }} Provision Virtual Machine disk"
+      copy:
+        src: /virt/images/bionic-server-cloudimg-amd64.qcow2 
+        dest: /virt/vms/{{ vmname }}/{{ vmname }}.qcow2
+        remote_src: true
+
+    - name: "Resize Virtual Machine disk"
+      shell:
+        cmd: qemu-img resize /virt/vms/{{ vmname }}/{{ vmname }}.qcow2 20G
+
+    - name: "Create virtual machine "
+      shell:
+        cmd: >-
+            virt-install
+            --osinfo ubuntubionic
+            --name "{{ vmname }}"
+            --memory 1024
+            --disk /virt/vms/{{ vmname }}/{{ vmname }}.qcow2,device=disk,bus=virtio
+            --disk /virt/vms/{{ vmname }}/{{ vmname }}-cloud-config.img,device=cdrom
+            --graphics vnc,listen=0.0.0.0
+            --noautoconsole
+            --import
+
+    - name: start with host startup
+      virt:
+        name: "{{ vmname }}"
+        autostart: true

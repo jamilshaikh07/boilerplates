@@ -1,0 +1,78 @@
+---
+- name: Install QEMU, KVM, and Virt-Manager
+  hosts: localhost
+  become: true
+  gather_facts: false
+
+  vars:
+    user_name: "{{ lookup('env', 'USER') }}"
+
+  tasks:
+    - name: Check CPU virtualization support
+      shell: egrep -c '(vmx|svm)' /proc/cpuinfo
+      register: cpu_virtualization_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Show CPU virtualization support result
+      debug:
+        msg: >
+          "Virtualization supported: {{ cpu_virtualization_check.stdout }}"
+          if result is 0, virtualization may not be supported.
+
+    - name: Install cpu-checker for further virtualization checks
+      apt:
+        name: cpu-checker
+        state: present
+        update_cache: yes
+
+    - name: Run kvm-ok command to confirm virtualization support
+      shell: kvm-ok
+      register: kvm_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display kvm-ok check result
+      debug:
+        msg: "{{ kvm_check.stdout if kvm_check.stdout else 'kvm-ok check failed or not supported' }}"
+
+    - name: Install QEMU, KVM, Virt-Manager, and supporting packages
+      apt:
+        name:
+          - qemu-kvm
+          - virt-manager
+          - virtinst
+          - libvirt-clients
+          - bridge-utils
+          - libvirt-daemon-system
+          - cloud-utils
+        state: present
+        update_cache: yes
+
+    - name: Enable and start libvirtd service
+      systemd:
+        name: libvirtd
+        enabled: true
+        state: started
+
+    - name: Add user to KVM group
+      user:
+        name: "{{ user_name }}"
+        groups: kvm
+        append: true
+
+    - name: Add user to libvirt group
+      user:
+        name: "{{ user_name }}"
+        groups: libvirt
+        append: true
+
+    - name: Reboot the system to apply changes
+      reboot:
+        msg: "Rebooting to apply KVM group and service changes"
+      when: reboot_required.stat.exists
+
+    - name: Check if reboot is required
+      stat:
+        path: "/var/run/reboot-required"
+      register: reboot_required

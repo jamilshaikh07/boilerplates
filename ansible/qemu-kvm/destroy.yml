@@ -1,0 +1,29 @@
+---
+- hosts: localhost
+  become: true
+  tasks:
+    - name: Check if VM directory exists
+      stat:
+        path: "/virt/vms/{{ vmname }}"
+      register: vm_exists
+    
+    - name: List vms
+      virt:
+        command: list_vms
+      register: vms_list
+      environment:
+        LIBVIRT_DEFAULT_URI: qemu:///system
+
+    - name: display vms
+      debug:
+        var: vms_list
+
+    - name: Undefine VM
+      virt:
+        name: "{{ vmname }}"
+        command: undefine
+      
+    - name: Remove VM directory
+      file:
+        path: "/virt/vms/{{ vmname }}"
+        state: absent
