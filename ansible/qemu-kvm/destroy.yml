@@ -6,22 +6,18 @@
       stat:
         path: "/virt/vms/{{ vmname }}"
       register: vm_exists
-    
-    - name: List vms
-      virt:
-        command: list_vms
-      register: vms_list
-      environment:
-        LIBVIRT_DEFAULT_URI: qemu:///system
 
-    - name: display vms
-      debug:
-        var: vms_list
+    - name: destroy VM
+      virt:
+        name: "{{ vmname }}"
+        command: destroy
+        uri : "qemu:///session"
 
     - name: Undefine VM
       virt:
         name: "{{ vmname }}"
         command: undefine
+        uri : "qemu:///session"
       
     - name: Remove VM directory
       file:
