@@ -1,0 +1,14 @@
+name: Main Deployment Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    uses: owner/repo/.github/workflows/deploy.yml@main
+    with:
+      environment: "dev"
+      aws_region: "us-east-1"
+      terraform_dir: "./terraform"
